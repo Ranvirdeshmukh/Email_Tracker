@@ -1,0 +1,20 @@
+{
+  "name": "email-tracker",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n server,dashboard -c blue,green \"pnpm dev:server\" \"pnpm dev:dashboard\"",
+    "dev:server": "pnpm --filter @email-tracker/server dev",
+    "dev:dashboard": "pnpm --filter @email-tracker/dashboard dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,json,css,md}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,json,css,md}\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prettier": "^3.2.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
