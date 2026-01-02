@@ -5,6 +5,9 @@
   "description": "Track email opens and engagement",
   "permissions": ["storage"],
   "host_permissions": ["http://localhost:8080/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],

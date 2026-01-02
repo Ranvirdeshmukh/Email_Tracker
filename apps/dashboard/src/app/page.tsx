@@ -95,9 +95,17 @@ export default function Dashboard() {
     }
   });
 
+  // Parse SQLite datetime (stored in UTC) to local Date
+  const parseUTCDate = (dateStr: string) => {
+    // SQLite stores dates like "2026-01-02 03:22:00" in UTC
+    // We need to append 'Z' or '+00:00' to tell JS it's UTC
+    const normalized = dateStr.replace(' ', 'T') + 'Z';
+    return new Date(normalized);
+  };
+
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+    const date = parseUTCDate(dateStr);
+    return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -108,7 +116,7 @@ export default function Dashboard() {
   };
 
   const formatRelativeTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseUTCDate(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);

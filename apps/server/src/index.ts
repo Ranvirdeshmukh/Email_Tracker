@@ -13,8 +13,17 @@ const PORT = 8080;
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Middleware - Explicit CORS configuration
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://mail.google.com', 'chrome-extension://*'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
 app.use(express.json());
 
 // ============================================

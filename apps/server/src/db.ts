@@ -145,6 +145,8 @@ export function getAllEmails(): (Email & { open_count: number })[] {
 
 /**
  * Record an email open event
+ * Deduplicates opens within 60 seconds from the same IP to avoid counting
+ * multiple image loads as separate opens
  */
 export function recordOpen(data: {
   emailId: string;
@@ -155,9 +157,24 @@ export function recordOpen(data: {
   const email = getEmailById(data.emailId);
   if (!email) return null;
 
+  // Check for recent opens from the same IP (within 60 seconds)
+  // This prevents counting multiple image loads as separate opens
+  const recentOpen = db.prepare(`
+    SELECT * FROM opens 
+    WHERE email_id = ? 
+      AND ip_address = ? 
+      AND datetime(opened_at) > datetime('now', '-60 seconds')
+    LIMIT 1
+  `).get(data.emailId, data.ipAddress || null) as Open | undefined;
+
+  if (recentOpen) {
+    console.log(`[db] Skipping duplicate open for ${data.emailId} from ${data.ipAddress}`);
+    return recentOpen; // Return existing open instead of creating duplicate
+  }
+
   const stmt = db.prepare(`
-    INSERT INTO opens (email_id, ip_address, user_agent)
-    VALUES (?, ?, ?)
+    INSERT INTO opens (email_id, ip_address, user_agent, opened_at)
+    VALUES (?, ?, ?, datetime('now'))
   `);
   
   const result = stmt.run(data.emailId, data.ipAddress || null, data.userAgent || null);

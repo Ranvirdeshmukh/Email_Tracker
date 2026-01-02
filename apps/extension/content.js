@@ -32,34 +32,39 @@
   };
 
   // ============================================
-  // API Functions
+  // API Functions (via Background Script)
   // ============================================
 
   async function createTrackedEmail(recipient, subject) {
-    try {
-      const response = await fetch(`${CONFIG.API_BASE}/api/emails`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    return new Promise((resolve) => {
+      console.log('[MailTracker] Sending to background:', { recipient, subject });
+      
+      chrome.runtime.sendMessage(
+        {
+          action: 'createTrackedEmail',
+          data: {
+            recipient: recipient,
+            subject: subject,
+            sender: 'me',
+          },
         },
-        body: JSON.stringify({
-          recipient: recipient,
-          subject: subject,
-          sender: 'me', // Gmail doesn't easily expose sender
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create tracked email');
-      }
-
-      const data = await response.json();
-      console.log('[MailTracker] Created tracked email:', data.id);
-      return data;
-    } catch (error) {
-      console.error('[MailTracker] API Error:', error);
-      return null;
-    }
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('[MailTracker] Runtime error:', chrome.runtime.lastError);
+            resolve(null);
+            return;
+          }
+          
+          if (response && response.success) {
+            console.log('[MailTracker] Created tracked email:', response.data.id);
+            resolve(response.data);
+          } else {
+            console.error('[MailTracker] API Error:', response?.error);
+            resolve(null);
+          }
+        }
+      );
+    });
   }
 
   // ============================================
