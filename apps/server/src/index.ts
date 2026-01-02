@@ -11,6 +11,10 @@ import {
 
 const PORT = 8080;
 
+// For production/ngrok, set PUBLIC_URL environment variable
+// Example: PUBLIC_URL=https://abc123.ngrok-free.app
+const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+
 const app = express();
 
 // Middleware - Explicit CORS configuration
@@ -98,8 +102,8 @@ app.post('/api/emails', (req, res) => {
     // Return the email with the tracking pixel URL
     res.status(201).json({
       ...email,
-      tracking_url: `http://localhost:${PORT}/track/${email.id}.png`,
-      tracking_html: `<img src="http://localhost:${PORT}/track/${email.id}.png" width="1" height="1" style="display:none" alt="">`,
+      tracking_url: `${PUBLIC_URL}/track/${email.id}.png`,
+      tracking_html: `<img src="${PUBLIC_URL}/track/${email.id}.png" width="1" height="1" style="display:none" alt="">`,
     });
   } catch (error) {
     console.error('[api] Error creating email:', error);

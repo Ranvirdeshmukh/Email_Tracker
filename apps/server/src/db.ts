@@ -145,8 +145,8 @@ export function getAllEmails(): (Email & { open_count: number })[] {
 
 /**
  * Record an email open event
- * Deduplicates opens within 60 seconds from the same IP to avoid counting
- * multiple image loads as separate opens
+ * - Ignores opens within 10 seconds of email creation (sender's browser loading)
+ * - Deduplicates opens within 60 seconds from the same IP
  */
 export function recordOpen(data: {
   emailId: string;
@@ -156,6 +156,18 @@ export function recordOpen(data: {
   // First verify the email exists
   const email = getEmailById(data.emailId);
   if (!email) return null;
+
+  // IMPORTANT: Ignore opens that happen within 10 seconds of email creation
+  // This filters out the "phantom" open from the sender's browser when the
+  // tracking pixel is injected into the compose window
+  const emailCreatedAt = new Date(email.created_at.replace(' ', 'T') + 'Z');
+  const now = new Date();
+  const secondsSinceCreation = (now.getTime() - emailCreatedAt.getTime()) / 1000;
+  
+  if (secondsSinceCreation < 10) {
+    console.log(`[db] Ignoring open for ${data.emailId} - too soon after creation (${secondsSinceCreation.toFixed(1)}s)`);
+    return null;
+  }
 
   // Check for recent opens from the same IP (within 60 seconds)
   // This prevents counting multiple image loads as separate opens
@@ -178,6 +190,7 @@ export function recordOpen(data: {
   `);
   
   const result = stmt.run(data.emailId, data.ipAddress || null, data.userAgent || null);
+  console.log(`[db] Recorded open for ${data.emailId} (${secondsSinceCreation.toFixed(0)}s after creation)`);
   
   // Return the created open
   const openStmt = db.prepare('SELECT * FROM opens WHERE id = ?');

@@ -39,31 +39,53 @@
     return new Promise((resolve) => {
       console.log('[MailTracker] Sending to background:', { recipient, subject });
       
-      chrome.runtime.sendMessage(
-        {
-          action: 'createTrackedEmail',
-          data: {
-            recipient: recipient,
-            subject: subject,
-            sender: 'me',
+      // Check if extension context is still valid
+      if (!chrome.runtime?.id) {
+        console.error('[MailTracker] Extension context invalidated - please refresh Gmail');
+        showNotification('Please refresh Gmail to continue tracking', 'error');
+        resolve(null);
+        return;
+      }
+      
+      try {
+        chrome.runtime.sendMessage(
+          {
+            action: 'createTrackedEmail',
+            data: {
+              recipient: recipient,
+              subject: subject,
+              sender: 'me',
+            },
           },
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('[MailTracker] Runtime error:', chrome.runtime.lastError);
-            resolve(null);
-            return;
+          (response) => {
+            if (chrome.runtime.lastError) {
+              const errorMsg = chrome.runtime.lastError.message || 'Unknown error';
+              console.error('[MailTracker] Runtime error:', errorMsg);
+              
+              // Check for context invalidated error
+              if (errorMsg.includes('context invalidated') || errorMsg.includes('Extension context')) {
+                showNotification('Extension updated - please refresh Gmail', 'error');
+              }
+              resolve(null);
+              return;
+            }
+            
+            if (response && response.success) {
+              console.log('[MailTracker] Created tracked email:', response.data.id);
+              resolve(response.data);
+            } else {
+              console.error('[MailTracker] API Error:', response?.error);
+              resolve(null);
+            }
           }
-          
-          if (response && response.success) {
-            console.log('[MailTracker] Created tracked email:', response.data.id);
-            resolve(response.data);
-          } else {
-            console.error('[MailTracker] API Error:', response?.error);
-            resolve(null);
-          }
+        );
+      } catch (error) {
+        console.error('[MailTracker] Exception:', error);
+        if (error.message?.includes('context invalidated')) {
+          showNotification('Extension updated - please refresh Gmail', 'error');
         }
-      );
+        resolve(null);
+      }
     });
   }
 
@@ -212,16 +234,15 @@
       return false;
     }
 
-    // Create invisible tracking pixel
-    const pixel = document.createElement('img');
-    pixel.src = trackingUrl;
-    pixel.width = 1;
-    pixel.height = 1;
-    pixel.style.cssText = 'display:none!important;width:1px!important;height:1px!important;opacity:0!important;';
-    pixel.alt = '';
+    // Create tracking pixel HTML as a string
+    // We use a zero-height div to hide it, and the img inside
+    // Note: The browser WILL load this image when injected, but the server
+    // will ignore opens that happen within 10 seconds of email creation
+    const pixelHtml = `<div style="height:0;width:0;max-height:0;max-width:0;overflow:hidden;visibility:hidden;mso-hide:all;"><img src="${trackingUrl}" width="1" height="1" alt="" style="display:block;height:1px;width:1px;border:0;" /></div>`;
     
-    // Add at the end of the message body
-    messageBody.appendChild(pixel);
+    // Insert at the end of the email body
+    // Using insertAdjacentHTML to avoid parsing issues
+    messageBody.insertAdjacentHTML('beforeend', pixelHtml);
     
     console.log('[MailTracker] Tracking pixel injected:', trackingUrl);
     return true;
@@ -313,12 +334,16 @@
         subject || '(No subject)'
       );
 
-      if (trackedEmail && trackedEmail.tracking_url) {
+      if (trackedEmail && trackedEmail.id) {
+        // Construct tracking URL using CONFIG.API_BASE (handles ngrok/production URLs)
+        const trackingUrl = `${CONFIG.API_BASE}/track/${trackedEmail.id}.png`;
+        
         // Inject tracking pixel
-        const injected = injectTrackingPixel(messageBody, trackedEmail.tracking_url);
+        const injected = injectTrackingPixel(messageBody, trackingUrl);
         
         if (injected) {
           showNotification(`Tracking enabled for: ${recipients[0]}`);
+          console.log('[MailTracker] Tracking URL:', trackingUrl);
         }
       } else {
         console.error('[MailTracker] Failed to create tracked email');
