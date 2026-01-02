@@ -1,6 +1,6 @@
 # Email Tracker
 
-A MailSuite-style email tracking system with a Chrome extension, tracking server, and analytics dashboard.
+An email tracking system with a Chrome extension, tracking server, and analytics dashboard.
 
 ## Stack
 
