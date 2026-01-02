@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Email Tracker",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Track email opens and engagement",
-  "permissions": [],
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost:8080/*"],
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
